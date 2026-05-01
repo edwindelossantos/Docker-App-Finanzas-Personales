@@ -55,11 +55,30 @@ class QuincenaBase(BaseModel):
     gastos_fijos: Optional[float] = 0
     disponible: Optional[float] = 0
     ahorrado: Optional[float] = 0
+    fecha_inicio: Optional[datetime] = None
+    fecha_fin: Optional[datetime] = None
 
 class QuincenaCreate(QuincenaBase):
     pass
 
 class QuincenaResponse(QuincenaBase):
+    id: int
+    user_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class GastoFijoBase(BaseModel):
+    nombre: str
+    monto: float
+    categoria: Optional[str] = None
+    es_automatico: Optional[int] = 0
+
+class GastoFijoCreate(GastoFijoBase):
+    pass
+
+class GastoFijoResponse(GastoFijoBase):
     id: int
     user_id: int
     created_at: datetime

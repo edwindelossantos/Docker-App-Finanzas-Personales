@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import timedelta
 
 from ..database import get_db
-from ..core.security import get_current_active_user, get_password_hash
 from ..models.user import User
 from ..schemas.user import UserCreate, UserResponse, LoginRequest, Token
 from ..services import auth_service
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
+
+DEFAULT_USER_ID = 1
 
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -31,13 +31,22 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)
-def get_current_user_info(current_user: User = Depends(get_current_active_user)):
-    return current_user
+def get_current_user_info(db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == DEFAULT_USER_ID).first()
+    if not user:
+        user = db.query(User).filter(User.username == "admin").first()
+    return user
 
 @router.post("/change-password")
-def change_password(old_password: str, new_password: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
-    if not auth_service.authenticate_user(db, current_user.username, old_password):
+def change_password(old_password: str, new_password: str, db: Session = Depends(get_db)):
+    from ..core.security import get_password_hash
+    user = db.query(User).filter(User.id == DEFAULT_USER_ID).first()
+    if not user:
+        user = db.query(User).filter(User.username == "admin").first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if not auth_service.authenticate_user(db, user.username, old_password):
         raise HTTPException(status_code=400, detail="Contraseña incorrecta")
-    current_user.hashed_password = get_password_hash(new_password)
+    user.hashed_password = get_password_hash(new_password)
     db.commit()
     return {"message": "Contraseña actualizada"}

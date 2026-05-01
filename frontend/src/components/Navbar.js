@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 const Navbar = () => {
   const location = useLocation();
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+  const [theme, setTheme] = useState('dark');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -19,14 +19,14 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <div className="container navbar-content">
-        <div className="logo">Finanzas</div>
+        <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }} className="logo">Finanzas</Link>
         <div className="nav-links">
           <Link to="/" className={isActive('/')}>Dashboard</Link>
           <Link to="/transactions" className={isActive('/transactions')}>Transacciones</Link>
           <Link to="/categories" className={isActive('/categories')}>Categorías</Link>
           <Link to="/budgets" className={isActive('/budgets')}>Presupuestos</Link>
           <Link to="/goals" className={isActive('/goals')}>Metas</Link>
-          <Link to="/quincenas" className={isActive('/quincenas')}>Quincenas</Link>
+          <Link to="/quincenas" className={isActive('/quincenas')}>Ingresos</Link>
           <button className="theme-toggle" onClick={toggleTheme}>
             {theme === 'light' ? '🌙' : '☀️'}
           </button>

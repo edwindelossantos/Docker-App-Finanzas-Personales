@@ -6,9 +6,9 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const year = d.getUTCFullYear();
   return `${day}/${month}/${year}`;
 };
 
@@ -42,7 +42,7 @@ const Transactions = () => {
     try {
       await axios.post(`${API_URL}/api/transactions/`, {
         ...form,
-        date: new Date(form.date).toISOString()
+        date: new Date(form.date + 'T12:00:00').toISOString()
       });
       setShowModal(false);
       setForm({ type: 'expense', amount: '', category_id: '', description: '', date: '' });

@@ -5,13 +5,41 @@ from ..models.category import Category
 from ..schemas.category import CategoryCreate, CategoryUpdate
 
 DEFAULT_CATEGORIES = [
-    {"name": "Vivienda", "color": "#10B981", "icon": "home", "percentage": 30},
-    {"name": "Alimentación", "color": "#F59E0B", "icon": "utensils", "percentage": 15},
-    {"name": "Ahorro", "color": "#3B82F6", "icon": "piggy-bank", "percentage": 10},
-    {"name": "Salud", "color": "#EF4444", "icon": "heart", "percentage": 10},
-    {"name": "Imprevistos", "color": "#8B5CF6", "icon": "exclamation-triangle", "percentage": 10},
-    {"name": "Transporte", "color": "#06B6D4", "icon": "car", "percentage": 15},
-    {"name": "Entretenimiento", "color": "#EC4899", "icon": "gamepad", "percentage": 10},
+    {"name": "Vivienda", "color": "#10B981", "icon": "🏠", "percentage": 30, "type": "expense"},
+    {"name": "Alimentación", "color": "#F59E0B", "icon": "🍽️", "percentage": 15, "type": "expense"},
+    {"name": "Ahorro", "color": "#3B82F6", "icon": "💰", "percentage": 10, "type": "expense"},
+    {"name": "Salud", "color": "#EF4444", "icon": "❤️", "percentage": 10, "type": "expense"},
+    {"name": "Imprevistos", "color": "#8B5CF6", "icon": "⚠️", "percentage": 10, "type": "expense"},
+    {"name": "Transporte", "color": "#06B6D4", "icon": "🚗", "percentage": 15, "type": "expense"},
+    {"name": "Entretenimiento", "color": "#EC4899", "icon": "🎮", "percentage": 10, "type": "expense"},
+    {"name": "Servicios", "color": "#F59E0B", "icon": "💡", "percentage": 0, "type": "expense"},
+    {"name": "Internet", "color": "#3B82F6", "icon": "📱", "percentage": 0, "type": "expense"},
+    {"name": "Teléfono", "color": "#8B5CF6", "icon": "☎️", "percentage": 0, "type": "expense"},
+    {"name": "Educación", "color": "#EF4444", "icon": "📚", "percentage": 0, "type": "expense"},
+    {"name": "Seguro", "color": "#06B6D4", "icon": "🛡️", "percentage": 0, "type": "expense"},
+    {"name": "Deudas", "color": "#EC4899", "icon": "📋", "percentage": 0, "type": "expense"},
+    {"name": "Impuestos", "color": "#F59E0B", "icon": "📄", "percentage": 0, "type": "expense"},
+    {"name": "Mantenimiento", "color": "#3B82F6", "icon": "🔧", "percentage": 0, "type": "expense"},
+    {"name": "Regalos", "color": "#8B5CF6", "icon": "🎀", "percentage": 0, "type": "expense"},
+    {"name": "Suscripciones", "color": "#EC4899", "icon": "📺", "percentage": 0, "type": "expense"},
+    {"name": "Viajes", "color": "#06B6D4", "icon": "✈️", "percentage": 0, "type": "expense"},
+    {"name": "Gimnasio", "color": "#10B981", "icon": "🏋️", "percentage": 0, "type": "expense"},
+    {"name": "Mascotas", "color": "#F59E0B", "icon": "🐾", "percentage": 0, "type": "expense"},
+]
+
+INCOME_CATEGORIES = [
+    {"name": "Salario", "color": "#10B981", "icon": "💵", "percentage": 0, "type": "income"},
+    {"name": "Freelance", "color": "#3B82F6", "icon": "💻", "percentage": 0, "type": "income"},
+    {"name": "Inversión", "color": "#8B5CF6", "icon": "📈", "percentage": 0, "type": "income"},
+    {"name": "Bono", "color": "#F59E0B", "icon": "🎁", "percentage": 0, "type": "income"},
+    {"name": "Otro Ingreso", "color": "#06B6D4", "icon": "📦", "percentage": 0, "type": "income"},
+    {"name": "Nómina", "color": "#10B981", "icon": "💼", "percentage": 0, "type": "income"},
+    {"name": "Comisiones", "color": "#3B82F6", "icon": "📊", "percentage": 0, "type": "income"},
+    {"name": "Alquiler", "color": "#8B5CF6", "icon": "🏢", "percentage": 0, "type": "income"},
+    {"name": "Dividendos", "color": "#F59E0B", "icon": "💹", "percentage": 0, "type": "income"},
+    {"name": "Venta", "color": "#06B6D4", "icon": "🛒", "percentage": 0, "type": "income"},
+    {"name": "Subsidio", "color": "#EC4899", "icon": "🏥", "percentage": 0, "type": "income"},
+    {"name": "Devolución", "color": "#10B981", "icon": "🔄", "percentage": 0, "type": "income"},
 ]
 
 def create_category(db: Session, user_id: int, category: CategoryCreate):
@@ -57,4 +85,18 @@ def create_default_categories(db: Session, user_id: int):
                 is_system=1
             )
             db.add(db_category)
+    
+    for cat in INCOME_CATEGORIES:
+        existing = db.query(Category).filter(Category.name == cat["name"], Category.user_id == user_id).first()
+        if not existing:
+            db_category = Category(
+                user_id=user_id,
+                name=cat["name"],
+                color=cat["color"],
+                icon=cat["icon"],
+                percentage=cat["percentage"],
+                is_system=1
+            )
+            db.add(db_category)
+    
     db.commit()

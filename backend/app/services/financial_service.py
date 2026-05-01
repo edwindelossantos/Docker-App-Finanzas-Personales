@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from ..models.financial import Income, Goal, Quincena
-from ..schemas.financial import IncomeCreate, GoalCreate, GoalUpdate, QuincenaCreate
+from ..models.financial import Income, Goal, Quincena, GastoFijo
+from ..schemas.financial import IncomeCreate, GoalCreate, GoalUpdate, QuincenaCreate, GastoFijoCreate
 
 def create_income(db: Session, user_id: int, income: IncomeCreate):
     db_income = Income(**income.model_dump(), user_id=user_id)
@@ -91,6 +91,24 @@ def delete_quincena(db: Session, quincena_id: int, user_id: int):
     db_quincena = get_quincena_by_id(db, quincena_id, user_id)
     if db_quincena:
         db.delete(db_quincena)
+        db.commit()
+        return True
+    return False
+
+def create_gasto_fijo(db: Session, user_id: int, gasto: GastoFijoCreate):
+    db_gasto = GastoFijo(**gasto.model_dump(), user_id=user_id)
+    db.add(db_gasto)
+    db.commit()
+    db.refresh(db_gasto)
+    return db_gasto
+
+def get_gastos_fijos(db: Session, user_id: int):
+    return db.query(GastoFijo).filter(GastoFijo.user_id == user_id).order_by(GastoFijo.created_at.desc()).all()
+
+def delete_gasto_fijo(db: Session, gasto_id: int, user_id: int):
+    db_gasto = db.query(GastoFijo).filter(GastoFijo.id == gasto_id, GastoFijo.user_id == user_id).first()
+    if db_gasto:
+        db.delete(db_gasto)
         db.commit()
         return True
     return False

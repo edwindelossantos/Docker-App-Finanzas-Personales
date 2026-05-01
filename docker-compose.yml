@@ -41,9 +41,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=http://172.21.11.246:8000
     container_name: finanzas_frontend
     environment:
-      - REACT_APP_API_URL=http://192.168.1.100:8000
       - PORT=3000
     ports:
       - "3002:3000"
