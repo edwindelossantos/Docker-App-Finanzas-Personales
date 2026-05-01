@@ -53,10 +53,8 @@ const Transactions = () => {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('¿Eliminar esta transacción?')) {
       await axios.delete(`${API_URL}/api/transactions/${id}/`);
       fetchTransactions();
-    }
   };
 
   return (

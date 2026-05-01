@@ -27,6 +27,7 @@ const Navbar = () => {
           <Link to="/budgets" className={isActive('/budgets')}>Presupuestos</Link>
           <Link to="/goals" className={isActive('/goals')}>Metas</Link>
           <Link to="/quincenas" className={isActive('/quincenas')}>Ingresos</Link>
+          <Link to="/import-export" className={isActive('/import-export')}>📊 Excel</Link>
           <button className="theme-toggle" onClick={toggleTheme}>
             {theme === 'light' ? '🌙' : '☀️'}
           </button>

@@ -105,10 +105,8 @@ const Categories = () => {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('¿Eliminar esta categoría?')) {
       await axios.delete(`${API_URL}/api/categories/${id}/`);
       fetchCategories();
-    }
   };
 
   const selectIcon = (icon) => {

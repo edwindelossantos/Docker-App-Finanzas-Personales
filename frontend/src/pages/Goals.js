@@ -53,11 +53,9 @@ const Goals = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (confirm('¿Eliminar esta meta?')) {
-      await axios.delete(`${API_URL}/api/financial/goals/${id}/`);
+const handleDelete = async (id) => {
+      await axios.delete(`${API_URL}/api/goals/${id}/`);
       fetchGoals();
-    }
   };
 
   const getProgress = (current, target) => {

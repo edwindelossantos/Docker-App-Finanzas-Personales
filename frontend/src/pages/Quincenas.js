@@ -142,14 +142,12 @@ const Quincenas = () => {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('¿Eliminar este registro?')) {
       try {
         await axios.delete(`${API_URL}/api/financial/quincenas/${id}`, { maxRedirects: 5 });
         fetchQuincenas();
       } catch (error) {
         console.error('Error deleting:', error);
       }
-    }
   };
 
   const filteredQuincenas = mode === 'mensual' 

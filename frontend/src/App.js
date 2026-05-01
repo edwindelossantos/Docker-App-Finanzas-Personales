@@ -7,6 +7,7 @@ import Categories from './pages/Categories';
 import Budgets from './pages/Budgets';
 import Goals from './pages/Goals';
 import Quincenas from './pages/Quincenas';
+import ImportExport from './pages/ImportExport';
 import Navbar from './components/Navbar';
 
 function AppRoutes() {
@@ -18,6 +19,7 @@ function AppRoutes() {
       <Route path="/budgets" element={<Fragment><Navbar /><Budgets /></Fragment>} />
       <Route path="/goals" element={<Fragment><Navbar /><Goals /></Fragment>} />
       <Route path="/quincenas" element={<Fragment><Navbar /><Quincenas /></Fragment>} />
+      <Route path="/import-export" element={<Fragment><Navbar /><ImportExport /></Fragment>} />
     </Routes>
   );
 }

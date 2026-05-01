@@ -126,14 +126,12 @@ const Budgets = () => {
   };
 
   const handleDeleteFixed = async (id) => {
-    if (confirm('¿Eliminar este gasto fijo?')) {
       try {
         await axios.delete(`${API_URL}/api/financial/gastos-fijos/${id}`, { maxRedirects: 5 });
         fetchGastosFijos();
       } catch (error) {
         console.error('Error deleting:', error);
       }
-    }
   };
 
   const handlePercentageChange = (category, value) => {
