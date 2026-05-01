@@ -28,6 +28,8 @@ const Dashboard = () => {
   const [budgetAlerts, setBudgetAlerts] = useState([]);
   const [monthlyData, setMonthlyData] = useState([]);
   const [totalIncome, setTotalIncome] = useState(0);
+  const [transactionIncome, setTransactionIncome] = useState(0);
+  const [totalExpenses, setTotalExpenses] = useState(0);
   const [showQuickExpense, setShowQuickExpense] = useState(false);
   const [expenseForm, setExpenseForm] = useState({ amount: '', category_id: '', description: '', date: new Date().toISOString().split('T')[0] });
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,6 +39,56 @@ const Dashboard = () => {
   const [incomeInput, setIncomeInput] = useState('');
   const [showQuickIncome, setShowQuickIncome] = useState(false);
   const [incomeForm, setIncomeForm] = useState({ amount: '', category_id: '', description: '', date: new Date().toISOString().split('T')[0] });
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [showCustomizeModal, setShowCustomizeModal] = useState(false);
+  const [dismissedAlerts, setDismissedAlerts] = useState([]);
+  const [selectedRuleCategory, setSelectedRuleCategory] = useState(null);
+
+  const hasNewAlerts = budgetAlerts.length > 0 && !budgetAlerts.every(a => dismissedAlerts.includes(a.message));
+  const [customRules, setCustomRules] = useState(() => {
+    const saved = localStorage.getItem('rule50_30_20_categories');
+    return saved ? JSON.parse(saved) : {
+      needs: ['Vivienda', 'Alimentación', 'Transporte', 'Servicios', 'Internet', 'Teléfono', 'Educación', 'Seguro', 'Mantenimiento', 'Mascotas', 'Gimnasio'],
+      wants: ['Entretenimiento', 'Viajes', 'Suscripciones', 'Regalos', 'Otros'],
+      savings: ['Ahorro', 'Inversión', 'Deudas', 'Impuestos']
+    };
+  });
+
+  const saveCustomRules = () => {
+    localStorage.setItem('rule50_30_20_categories', JSON.stringify(customRules));
+    setShowCustomizeModal(false);
+  };
+
+  const calculateRuleSpending = () => {
+    const totalAvailable = totalIncome;
+    if (totalAvailable <= 0) return { needs: 0, wants: 0, savings: 0, needsLimit: 0, wantsLimit: 0, savingsLimit: 0 };
+    
+    const needsLimit = totalAvailable * 0.50;
+    const wantsLimit = totalAvailable * 0.30;
+    const savingsLimit = totalAvailable * 0.20;
+    
+    let needs = 0, wants = 0, savings = 0;
+    
+    Object.keys(spending).forEach(catId => {
+      const cat = categories.find(c => c.id === parseInt(catId));
+      if (cat) {
+        const amount = spending[catId] || 0;
+        if (customRules.needs.includes(cat.name)) needs += amount;
+        else if (customRules.wants.includes(cat.name)) wants += amount;
+        else if (customRules.savings.includes(cat.name)) savings += amount;
+        else needs += amount;
+      }
+    });
+    
+    return { needs, wants, savings, needsLimit, wantsLimit, savingsLimit };
+  };
+
+  const ruleData = calculateRuleSpending();
+  const totalSpent = ruleData.needs + ruleData.wants + ruleData.savings;
+  const isOverNeeds = ruleData.needs > ruleData.needsLimit;
+  const isOverWants = ruleData.wants > ruleData.wantsLimit;
+  const isOverSavings = ruleData.savings > ruleData.savingsLimit;
+  const hasExceeded = isOverNeeds || isOverWants || isOverSavings;
 
   const today = new Date();
   const currentDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
@@ -86,6 +138,16 @@ const Dashboard = () => {
         const total = quincenasRes.data.reduce((sum, q) => sum + (q.ingresos || 0), 0);
         setTotalIncome(total);
       }
+
+      const allExpenses = countRes.data
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+      setTotalExpenses(allExpenses);
+
+      const allIncomesFromTransactions = countRes.data
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+      setTransactionIncome(allIncomesFromTransactions);
 
       await fetchMonthlyTrends();
     } catch (error) {
@@ -385,14 +447,30 @@ const Dashboard = () => {
         </div>
       </div>
       
-      {budgetAlerts.length > 0 && (
-        <div style={{ background: '#FEF3C7', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-          <strong>Alertas de Presupuesto:</strong>
-          <ul style={{ marginTop: '10px', marginLeft: '20px' }}>
-            {budgetAlerts.map((alert, i) => (
-              <li key={i}>{alert.message}</li>
-            ))}
-          </ul>
+      {budgetAlerts.length > 0 && !budgetAlerts.every(a => dismissedAlerts.includes(a.message)) && (
+        <div className="modal-overlay" style={{ position: 'fixed', background: 'rgba(0,0,0,0.5)', zIndex: 9999 }}>
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#FEF3C7', padding: '20px', borderRadius: '12px', maxWidth: '400px', width: '90%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h3 style={{ margin: 0, color: '#92400E' }}>⚠️ Alertas de Presupuesto</h3>
+              <button 
+                onClick={() => setDismissedAlerts(budgetAlerts.map(a => a.message))}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#92400E' }}
+              >
+                ×
+              </button>
+            </div>
+            <ul style={{ marginLeft: '20px', color: '#92400E' }}>
+              {budgetAlerts.map((alert, i) => (
+                <li key={i} style={{ marginBottom: '8px' }}>{alert.message}</li>
+              ))}
+            </ul>
+            <button 
+              onClick={() => setDismissedAlerts(budgetAlerts.map(a => a.message))}
+              style={{ width: '100%', padding: '10px', background: '#92400E', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', marginTop: '10px' }}
+            >
+              Entendido
+            </button>
+          </div>
         </div>
       )}
 
@@ -439,12 +517,47 @@ const Dashboard = () => {
           <div className="stat-value negative">{formatCurrency(summary.total_expense)}</div>
         </div>
         <div className="card stat-card">
-          <div className="stat-label">Balance</div>
-          <div className={`stat-value ${summary.balance >= 0 ? 'positive' : 'negative'}`}>
-            {formatCurrency(summary.balance)}
+          <div className="stat-label">Balance Total</div>
+          <div className={`stat-value ${((totalIncome + transactionIncome) - totalExpenses) >= 0 ? 'positive' : 'negative'}`}>
+            {formatCurrency((totalIncome + transactionIncome) - totalExpenses)}
           </div>
         </div>
       </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '20px' }}>
+        <div className="card stat-card" style={{ cursor: 'pointer', borderTop: isOverNeeds ? '4px solid #EF4444' : '4px solid #10B981' }} onClick={() => setSelectedRuleCategory('needs')}>
+          <div className="stat-label">Necesidades (50%)</div>
+          <div className={`stat-value ${isOverNeeds ? 'negative' : 'positive'}`}>
+            {formatCurrency(ruleData.needs)}
+          </div>
+          <div style={{ fontSize: '12px', color: '#6B7280' }}>
+            Límite: {formatCurrency(ruleData.needsLimit)} • {ruleData.needsLimit > 0 ? ((ruleData.needs / ruleData.needsLimit) * 100).toFixed(0) : 0}%
+          </div>
+        </div>
+        <div className="card stat-card" style={{ cursor: 'pointer', borderTop: isOverWants ? '4px solid #EF4444' : '4px solid #3B82F6' }} onClick={() => setSelectedRuleCategory('wants')}>
+          <div className="stat-label">Deseos (30%)</div>
+          <div className={`stat-value ${isOverWants ? 'negative' : ''}`} style={{ color: isOverWants ? '#EF4444' : '#3B82F6' }}>
+            {formatCurrency(ruleData.wants)}
+          </div>
+          <div style={{ fontSize: '12px', color: '#6B7280' }}>
+            Límite: {formatCurrency(ruleData.wantsLimit)} • {ruleData.wantsLimit > 0 ? ((ruleData.wants / ruleData.wantsLimit) * 100).toFixed(0) : 0}%
+          </div>
+        </div>
+        <div className="card stat-card" style={{ cursor: 'pointer', borderTop: isOverSavings ? '4px solid #EF4444' : '4px solid #F59E0B' }} onClick={() => setSelectedRuleCategory('savings')}>
+          <div className="stat-label">Ahorro (20%)</div>
+          <div className={`stat-value ${isOverSavings ? 'negative' : ''}`} style={{ color: isOverSavings ? '#EF4444' : '#F59E0B' }}>
+            {formatCurrency(ruleData.savings)}
+          </div>
+          <div style={{ fontSize: '12px', color: '#6B7280' }}>
+            Límite: {formatCurrency(ruleData.savingsLimit)} • {ruleData.savingsLimit > 0 ? ((ruleData.savings / ruleData.savingsLimit) * 100).toFixed(0) : 0}%
+          </div>
+        </div>
+      </div>
+      {hasExceeded && (
+        <div style={{ background: '#FEE2E2', padding: '12px 15px', borderRadius: '8px', marginBottom: '20px', color: '#EF4444', fontWeight: '500' }}>
+          ⚠️ Has excedido la regla 50/30/20. Haz clic en las tarjetas arriba para ver detalles.
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
         <div className="card" style={{ position: 'relative' }}>
@@ -631,6 +744,307 @@ const Dashboard = () => {
                 Guardar Ingreso
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showRuleModal && (
+        <div className="modal-overlay" onClick={() => setShowRuleModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Detalle Regla 50/30/20</h3>
+              <button className="close-btn" onClick={() => setShowRuleModal(false)}>×</button>
+            </div>
+            <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn btn-primary" 
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+                onClick={() => { setShowRuleModal(false); setShowCustomizeModal(true); }}
+              >
+                ⚙️ Personalizar Categorías
+              </button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <div className="card" style={{ marginBottom: '20px' }}>
+                <h4 className="card-title">Resumen General</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginTop: '10px' }}>
+                  <div>Ingreso Fijo: <strong>{formatCurrency(totalIncome)}</strong></div>
+                  <div>Ingresos Registrados: <strong>{formatCurrency(transactionIncome)}</strong></div>
+                  <div>Total Disponible: <strong>{formatCurrency(totalIncome + transactionIncome)}</strong></div>
+                  <div>Gastos Totales: <strong style={{ color: '#EF4444' }}>{formatCurrency(totalExpenses)}</strong></div>
+                </div>
+              </div>
+
+              <div className="dashboard-grid" style={{ marginBottom: '20px' }}>
+                <div className="card stat-card" style={{ borderTop: isOverNeeds ? '4px solid #EF4444' : '4px solid #10B981' }}>
+                  <div className="stat-label">Necesidades (50%)</div>
+                  <div className={`stat-value ${isOverNeeds ? 'negative' : 'positive'}`}>{formatCurrency(ruleData.needs)}</div>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>Límite: {formatCurrency(ruleData.needsLimit)}</div>
+                  {isOverNeeds && <div style={{ color: '#EF4444', fontSize: '12px' }}>Excedido: {formatCurrency(ruleData.needs - ruleData.needsLimit)}</div>}
+                </div>
+                <div className="card stat-card" style={{ borderTop: isOverWants ? '4px solid #EF4444' : '4px solid #3B82F6' }}>
+                  <div className="stat-label">Deseos (30%)</div>
+                  <div className="stat-value" style={{ color: isOverWants ? '#EF4444' : '#3B82F6' }}>{formatCurrency(ruleData.wants)}</div>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>Límite: {formatCurrency(ruleData.wantsLimit)}</div>
+                  {isOverWants && <div style={{ color: '#EF4444', fontSize: '12px' }}>Excedido: {formatCurrency(ruleData.wants - ruleData.wantsLimit)}</div>}
+                </div>
+                <div className="card stat-card" style={{ borderTop: isOverSavings ? '4px solid #EF4444' : '4px solid #F59E0B' }}>
+                  <div className="stat-label">Ahorro (20%)</div>
+                  <div className="stat-value" style={{ color: isOverSavings ? '#EF4444' : '#F59E0B' }}>{formatCurrency(ruleData.savings)}</div>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>Límite: {formatCurrency(ruleData.savingsLimit)}</div>
+                  {isOverSavings && <div style={{ color: '#EF4444', fontSize: '12px' }}>Excedido: {formatCurrency(ruleData.savings - ruleData.savingsLimit)}</div>}
+                </div>
+              </div>
+
+              <div className="card">
+                <h4 className="card-title">Gastos por Categoría del Mes</h4>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Categoría</th>
+                      <th style={{ textAlign: 'right' }}>Monto</th>
+                      <th style={{ textAlign: 'right' }}>%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.keys(spending).map(catId => {
+                      const cat = categories.find(c => c.id === parseInt(catId));
+                      const amount = spending[catId] || 0;
+                      if (amount <= 0) return null;
+                      return (
+                        <tr key={catId}>
+                          <td>{cat?.icon} {cat?.name}</td>
+                          <td style={{ textAlign: 'right' }}>{formatCurrency(amount)}</td>
+                          <td style={{ textAlign: 'right' }}>{totalSpent > 0 ? ((amount / totalSpent) * 100).toFixed(1) : 0}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedRuleCategory && (
+        <div className="modal-overlay" onClick={() => setSelectedRuleCategory(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                {selectedRuleCategory === 'needs' && '🏠 Necesidades (50%)'}
+                {selectedRuleCategory === 'wants' && '🎯 Deseos (30%)'}
+                {selectedRuleCategory === 'savings' && '💰 Ahorro/Deudas (20%)'}
+              </h3>
+              <button className="close-btn" onClick={() => setSelectedRuleCategory(null)}>×</button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <div className="card" style={{ marginBottom: '15px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', textAlign: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '14px', color: '#6B7280' }}>Gastado</div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: 
+                      selectedRuleCategory === 'needs' ? (isOverNeeds ? '#EF4444' : '#10B981') :
+                      selectedRuleCategory === 'wants' ? (isOverWants ? '#EF4444' : '#3B82F6') :
+                      (isOverSavings ? '#EF4444' : '#F59E0B')
+                    }}>
+                      {formatCurrency(
+                        selectedRuleCategory === 'needs' ? ruleData.needs :
+                        selectedRuleCategory === 'wants' ? ruleData.wants :
+                        ruleData.savings
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '14px', color: '#6B7280' }}>Límite</div>
+                    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
+                      {formatCurrency(
+                        selectedRuleCategory === 'needs' ? ruleData.needsLimit :
+                        selectedRuleCategory === 'wants' ? ruleData.wantsLimit :
+                        ruleData.savingsLimit
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '15px' }}>
+                <h4 style={{ marginBottom: '10px' }}>Categorías asignadas:</h4>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {(selectedRuleCategory === 'needs' ? customRules.needs : 
+                    selectedRuleCategory === 'wants' ? customRules.wants : 
+                    customRules.savings).map(catName => {
+                    const cat = categories.find(c => c.name === catName);
+                    const catSpending = cat ? (spending[cat.id] || 0) : 0;
+                    return (
+                      <span key={catName} style={{ padding: '6px 12px', background: 'var(--bg-secondary)', borderRadius: '16px', fontSize: '14px' }}>
+                        {cat?.icon || '📁'} {catName}: {formatCurrency(catSpending)}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                <button 
+                  className="btn btn-primary" 
+                  style={{ flex: 1 }}
+                  onClick={() => { setSelectedRuleCategory(null); setShowCustomizeModal(true); }}
+                >
+                  ⚙️ Personalizar
+                </button>
+                <button 
+                  className="btn" 
+                  style={{ flex: 1, background: 'var(--bg-secondary)' }}
+                  onClick={() => setSelectedRuleCategory(null)}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCustomizeModal && (
+        <div className="modal-overlay" onClick={() => setShowCustomizeModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Personalizar Regla 50/30/20</h3>
+              <button className="close-btn" onClick={() => setShowCustomizeModal(false)}>×</button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <p style={{ color: '#6B7280', marginBottom: '20px' }}>
+                Selecciona las categorías que belong a cada grupo de la regla 50/30/20:
+              </p>
+              
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '10px', color: '#10B981' }}>🏠 Necesidades (50%)</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {categories.map(cat => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        const isInNeeds = customRules.needs.includes(cat.name);
+                        const isInWants = customRules.wants.includes(cat.name);
+                        const isInSavings = customRules.savings.includes(cat.name);
+                        if (isInNeeds) {
+                          setCustomRules({
+                            ...customRules,
+                            needs: customRules.needs.filter(n => n !== cat.name)
+                          });
+                        } else {
+                          setCustomRules({
+                            needs: [...customRules.needs.filter(n => !customRules.wants.includes(n) && !customRules.savings.includes(n)), cat.name],
+                            wants: customRules.wants.filter(n => n !== cat.name),
+                            savings: customRules.savings.filter(n => n !== cat.name)
+                          });
+                        }
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '16px',
+                        border: '1px solid',
+                        borderColor: customRules.needs.includes(cat.name) ? '#10B981' : 'var(--border)',
+                        background: customRules.needs.includes(cat.name) ? '#10B98120' : 'transparent',
+                        color: customRules.needs.includes(cat.name) ? '#10B981' : 'var(--text)',
+                        cursor: 'pointer',
+                        fontSize: '14px'
+                      }}
+                    >
+                      {cat.icon} {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '10px', color: '#3B82F6' }}>🎯 Deseos (30%)</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {categories.map(cat => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        const isInWants = customRules.wants.includes(cat.name);
+                        if (isInWants) {
+                          setCustomRules({
+                            ...customRules,
+                            wants: customRules.wants.filter(n => n !== cat.name)
+                          });
+                        } else {
+                          setCustomRules({
+                            needs: customRules.needs.filter(n => n !== cat.name),
+                            wants: [...customRules.wants.filter(n => !customRules.needs.includes(n) && !customRules.savings.includes(n)), cat.name],
+                            savings: customRules.savings.filter(n => n !== cat.name)
+                          });
+                        }
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '16px',
+                        border: '1px solid',
+                        borderColor: customRules.wants.includes(cat.name) ? '#3B82F6' : 'var(--border)',
+                        background: customRules.wants.includes(cat.name) ? '#3B82F620' : 'transparent',
+                        color: customRules.wants.includes(cat.name) ? '#3B82F6' : 'var(--text)',
+                        cursor: 'pointer',
+                        fontSize: '14px'
+                      }}
+                    >
+                      {cat.icon} {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontWeight: 'bold', marginBottom: '10px', color: '#F59E0B' }}>💰 Ahorro/Deudas (20%)</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {categories.map(cat => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        const isInSavings = customRules.savings.includes(cat.name);
+                        if (isInSavings) {
+                          setCustomRules({
+                            ...customRules,
+                            savings: customRules.savings.filter(n => n !== cat.name)
+                          });
+                        } else {
+                          setCustomRules({
+                            needs: customRules.needs.filter(n => n !== cat.name),
+                            wants: customRules.wants.filter(n => n !== cat.name),
+                            savings: [...customRules.savings.filter(n => !customRules.needs.includes(n) && !customRules.wants.includes(n)), cat.name]
+                          });
+                        }
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '16px',
+                        border: '1px solid',
+                        borderColor: customRules.savings.includes(cat.name) ? '#F59E0B' : 'var(--border)',
+                        background: customRules.savings.includes(cat.name) ? '#F59E0B20' : 'transparent',
+                        color: customRules.savings.includes(cat.name) ? '#F59E0B' : 'var(--text)',
+                        cursor: 'pointer',
+                        fontSize: '14px'
+                      }}
+                    >
+                      {cat.icon} {cat.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                className="btn btn-primary" 
+                style={{ width: '100%', marginTop: '10px' }}
+                onClick={saveCustomRules}
+              >
+                Guardar Personalización
+              </button>
+            </div>
           </div>
         </div>
       )}
